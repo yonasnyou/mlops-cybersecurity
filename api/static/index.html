@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CyberShield — MLOps Intrusion Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #050a0e;
+    --panel:    #0a1520;
+    --border:   #0e2a3a;
+    --accent:   #00d4ff;
+    --green:    #00ff88;
+    --red:      #ff2d55;
+    --orange:   #ff9500;
+    --text:     #b0ccd8;
+    --dim:      #3a5a6a;
+    --glow:     0 0 20px rgba(0,212,255,0.25);
+    --glow-g:   0 0 20px rgba(0,255,136,0.3);
+    --glow-r:   0 0 20px rgba(255,45,85,0.35);
+    --mono:     'Share Tech Mono', monospace;
+    --ui:       'Rajdhani', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline effect */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ——— HEADER ——— */
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem;
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #050f18 0%, #071520 100%);
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 1.2rem;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px rgba(0,212,255,0.6);
+  }
+  .logo span { color: var(--green); }
+  .header-status {
+    display: flex; align-items: center; gap: 1.5rem;
+    font-size: 0.8rem; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ——— MAIN LAYOUT ——— */
+  main {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: auto auto;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ——— PANELS ——— */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .panel-title::before {
+    content: '▸';
+    color: var(--accent);
+  }
+
+  /* ——— FORM GRID ——— */
+  .form-section { margin-bottom: 1.5rem; }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.6rem;
+  }
+  .field {
+    display: flex; flex-direction: column; gap: 0.3rem;
+  }
+  .field label {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: var(--dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .field input, .field select {
+    background: #060f18;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+  .field select option { background: #0a1520; }
+
+  /* ——— PRESET BUTTONS ——— */
+  .presets {
+    display: flex; gap: 0.75rem; flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .preset-btn {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 0.45rem 1rem;
+    border-radius: 2px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .preset-btn.normal  { border-color: var(--green); color: var(--green); background: transparent; }
+  .preset-btn.attack  { border-color: var(--red);   color: var(--red);   background: transparent; }
+  .preset-btn.dos     { border-color: var(--orange); color: var(--orange); background: transparent; }
+  .preset-btn.normal:hover  { background: rgba(0,255,136,0.1); box-shadow: var(--glow-g); }
+  .preset-btn.attack:hover  { background: rgba(255,45,85,0.1);  box-shadow: var(--glow-r); }
+  .preset-btn.dos:hover     { background: rgba(255,149,0,0.1);  box-shadow: 0 0 20px rgba(255,149,0,0.3); }
+
+  /* ——— SUBMIT ——— */
+  .submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .submit-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+    z-index: -1;
+  }
+  .submit-btn:hover { color: var(--bg); box-shadow: var(--glow); }
+  .submit-btn:hover::before { transform: scaleX(1); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .submit-btn.loading { animation: blink 0.6s linear infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ——— RIGHT COLUMN ——— */
+  .right-col { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* ——— RESULT PANEL ——— */
+  .result-box {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    min-height: 220px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1rem;
+  }
+  .result-icon {
+    font-size: 3.5rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 12px currentColor);
+    transition: all 0.4s;
+  }
+  .result-verdict {
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    transition: all 0.4s;
+  }
+  .result-verdict.normal  { color: var(--green); text-shadow: 0 0 20px var(--green); }
+  .result-verdict.attack  { color: var(--red);   text-shadow: 0 0 20px var(--red); }
+  .result-verdict.idle    { color: var(--dim); }
+
+  .confidence-bar-wrap {
+    width: 100%; margin-top: 0.5rem;
+  }
+  .confidence-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-bottom: 0.4rem;
+    text-align: left;
+  }
+  .confidence-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    width: 0%;
+  }
+  .confidence-fill.normal { background: linear-gradient(90deg, #00cc66, var(--green)); }
+  .confidence-fill.attack { background: linear-gradient(90deg, #cc0033, var(--red)); }
+
+  .result-meta {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.5rem; width: 100%; margin-top: 0.5rem;
+  }
+  .meta-chip {
+    background: #060f18;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.5rem;
+    text-align: center;
+  }
+  .meta-chip .val {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--accent);
+  }
+  .meta-chip .key {
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-top: 0.2rem;
+  }
+
+  /* ——— API CONFIG ——— */
+  .api-row {
+    display: flex; gap: 0.5rem;
+  }
+  .api-row input {
+    flex: 1;
+    background: #060f18;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 2px;
+    outline: none;
+  }
+  .api-row input:focus { border-color: var(--accent); }
+  .small-btn {
+    padding: 0.5rem 0.9rem;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .small-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ——— HISTORY LOG ——— */
+  .log-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .log-entry {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: #060f18;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.6rem 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .log-tag {
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .log-tag.normal  { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .log-tag.attack  { background: rgba(255,45,85,0.15);  color: var(--red);   border: 1px solid rgba(255,45,85,0.3); }
+  .log-time { color: var(--dim); flex-shrink: 0; }
+  .log-model { color: var(--text); flex: 1; }
+  .log-conf { color: var(--accent); }
+
+  /* ——— STATS BAND ——— */
+  .stats-band {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    grid-column: 1 / -1;
+  }
+  .stat-cell {
+    background: var(--panel);
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+  .stat-val.green { color: var(--green); text-shadow: 0 0 12px rgba(0,255,136,0.4); }
+  .stat-val.red   { color: var(--red);   text-shadow: 0 0 12px rgba(255,45,85,0.4); }
+  .stat-val.blue  { color: var(--accent); text-shadow: 0 0 12px rgba(0,212,255,0.4); }
+  .stat-val.orange{ color: var(--orange); text-shadow: 0 0 12px rgba(255,149,0,0.4); }
+  .stat-key {
+    font-size: 0.65rem; letter-spacing: 1px;
+    color: var(--dim); text-transform: uppercase;
+  }
+
+  /* ——— EMPTY STATE ——— */
+  .empty { text-align: center; color: var(--dim); font-family: var(--mono); font-size: 0.75rem; padding: 2rem; }
+
+  /* ——— ALERT TOAST ——— */
+  #toast {
+    position: fixed; bottom: 2rem; right: 2rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 0.9rem 1.25rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text);
+    border-radius: 2px;
+    z-index: 100;
+    transform: translateX(120%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    max-width: 320px;
+  }
+  #toast.show { transform: translateX(0); }
+  #toast.error { border-left-color: var(--red); }
+
+  /* ——— RESPONSIVE ——— */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    .stats-band { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">CYBER<span>SHIELD</span> // MLOps</div>
+  <div class="header-status">
+    <span id="api-status-dot" class="dot offline"></span>
+    <span id="api-status-text">API DISCONNECTED</span>
+    <span style="color:var(--border)">|</span>
+    <span id="model-name-hdr" style="color:var(--dim)">NO MODEL</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STATS BAND -->
+  <div class="stats-band">
+    <div class="stat-cell">
+      <div class="stat-val blue" id="stat-total">0</div>
+      <div class="stat-key">Total Tests</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val green" id="stat-normal">0</div>
+      <div class="stat-key">Normal</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val red" id="stat-attack">0</div>
+      <div class="stat-key">Attaques</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val orange" id="stat-avg">—</div>
+      <div class="stat-key">Avg Confidence</div>
+    </div>
+  </div>
+
+  <!-- LEFT — FORM -->
+  <div class="panel" style="grid-row: 2;">
+    <div class="panel-title">Network Traffic Features — NSL-KDD</div>
+
+    <!-- API Config -->
+    <div class="form-section">
+      <div class="section-label">API Endpoint</div>
+      <div class="api-row">
+        <input id="api-url" type="text" value="http://localhost:8000" placeholder="http://localhost:8000"/>
+        <button class="small-btn" onclick="checkHealth()">PING</button>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="form-section">
+      <div class="section-label">Scénarios de Test</div>
+      <div class="presets">
+        <button class="preset-btn normal" onclick="loadPreset('normal')">✓ Trafic Normal</button>
+        <button class="preset-btn attack" onclick="loadPreset('neptune')">☠ Neptune (DoS)</button>
+        <button class="preset-btn attack" onclick="loadPreset('portscan')">⚠ Port Scan</button>
+        <button class="preset-btn dos"    onclick="loadPreset('smurf')">⚡ Smurf Attack</button>
+        <button class="preset-btn normal" onclick="loadPreset('ftp')">⇄ FTP Normal</button>
+        <button class="preset-btn attack" onclick="loadPreset('rootkit')">💀 Rootkit</button>
+      </div>
+    </div>
+
+    <!-- Features Sections -->
+    <div class="form-section">
+      <div class="section-label">Basic Features (Connexion)</div>
+      <div class="features-grid" id="basic-features"></div>
+    </div>
+    <div class="form-section">
+      <div class="section-label">Content Features (Payload)</div>
+      <div class="features-grid" id="content-features"></div>
+    </div>
+    <div class="form-section">
+      <div class="section-label">Traffic Features (Stats Réseau)</div>
+      <div class="features-grid" id="traffic-features"></div>
+    </div>
+
+    <button class="submit-btn" id="predict-btn" onclick="sendPrediction()">
+      ⟫ ANALYSER LE TRAFIC
+    </button>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col" style="grid-row: 2;">
+
+    <!-- Result -->
+    <div class="panel">
+      <div class="panel-title">Résultat de Prédiction</div>
+      <div class="result-box" id="result-box">
+        <div class="result-icon" id="result-icon" style="color:var(--dim)">◎</div>
+        <div class="result-verdict idle" id="result-verdict">EN ATTENTE</div>
+        <div style="color:var(--dim);font-size:0.75rem;font-family:var(--mono)">
+          Charge un scénario et lance une prédiction
+        </div>
+      </div>
+      <div id="confidence-wrap" class="confidence-bar-wrap" style="display:none">
+        <div class="confidence-label">CONFIDENCE — <span id="conf-pct">0%</span></div>
+        <div class="confidence-track">
+          <div class="confidence-fill" id="conf-fill"></div>
+        </div>
+      </div>
+      <div class="result-meta" id="result-meta" style="margin-top:1rem; display:none">
+        <div class="meta-chip">
+          <div class="val" id="meta-conf">—</div>
+          <div class="key">Confidence</div>
+        </div>
+        <div class="meta-chip">
+          <div class="val" id="meta-time">—</div>
+          <div class="key">Latence (ms)</div>
+        </div>
+        <div class="meta-chip">
+          <div class="val" id="meta-model">—</div>
+          <div class="key">Modèle</div>
+        </div>
+        <div class="meta-chip">
+          <div class="val" id="meta-pred">—</div>
+          <div class="key">Code</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="panel" style="flex:1">
+      <div class="panel-title">
+        Historique des Tests
+        <button class="small-btn" style="margin-left:auto;font-size:0.6rem" onclick="clearHistory()">CLEAR</button>
+      </div>
+      <div class="log-list" id="log-list">
+        <div class="empty">Aucun test effectué</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ——— FEATURE DEFINITIONS ———
+const FEATURES = [
+  // Basic (0-8)
+  { id:'duration',       label:'Duration',        group:'basic',   type:'number', def:0 },
+  { id:'protocol_type',  label:'Protocol',        group:'basic',   type:'select', opts:['tcp','udp','icmp'], def:'tcp' },
+  { id:'service',        label:'Service',         group:'basic',   type:'select', opts:['http','ftp','smtp','ssh','dns','finger','telnet','domain_u','private','other'], def:'http' },
+  { id:'flag',           label:'Flag',            group:'basic',   type:'select', opts:['SF','S0','REJ','RSTO','SH','RSTR','S1','S2','S3','OTH'], def:'SF' },
+  { id:'src_bytes',      label:'Src Bytes',       group:'basic',   type:'number', def:0 },
+  { id:'dst_bytes',      label:'Dst Bytes',       group:'basic',   type:'number', def:0 },
+  { id:'land',           label:'Land',            group:'basic',   type:'number', def:0 },
+  { id:'wrong_fragment', label:'Wrong Frag.',     group:'basic',   type:'number', def:0 },
+  { id:'urgent',         label:'Urgent',          group:'basic',   type:'number', def:0 },
+  // Content (9-21)
+  { id:'hot',                  label:'Hot',              group:'content', type:'number', def:0 },
+  { id:'num_failed_logins',    label:'Failed Logins',    group:'content', type:'number', def:0 },
+  { id:'logged_in',            label:'Logged In',        group:'content', type:'number', def:1 },
+  { id:'num_compromised',      label:'Compromised',      group:'content', type:'number', def:0 },
+  { id:'root_shell',           label:'Root Shell',       group:'content', type:'number', def:0 },
+  { id:'su_attempted',         label:'Su Attempted',     group:'content', type:'number', def:0 },
+  { id:'num_root',             label:'Num Root',         group:'content', type:'number', def:0 },
+  { id:'num_file_creations',   label:'File Creations',   group:'content', type:'number', def:0 },
+  { id:'num_shells',           label:'Num Shells',       group:'content', type:'number', def:0 },
+  { id:'num_access_files',     label:'Access Files',     group:'content', type:'number', def:0 },
+  { id:'num_outbound_cmds',    label:'Outbound Cmds',    group:'content', type:'number', def:0 },
+  { id:'is_host_login',        label:'Host Login',       group:'content', type:'number', def:0 },
+  { id:'is_guest_login',       label:'Guest Login',      group:'content', type:'number', def:0 },
+  // Traffic (22-40)
+  { id:'count',                   label:'Count',              group:'traffic', type:'number', def:2 },
+  { id:'srv_count',               label:'Srv Count',          group:'traffic', type:'number', def:2 },
+  { id:'serror_rate',             label:'SError Rate',        group:'traffic', type:'number', def:0.0 },
+  { id:'srv_serror_rate',         label:'Srv SErr Rate',      group:'traffic', type:'number', def:0.0 },
+  { id:'rerror_rate',             label:'RError Rate',        group:'traffic', type:'number', def:0.0 },
+  { id:'srv_rerror_rate',         label:'Srv RErr Rate',      group:'traffic', type:'number', def:0.0 },
+  { id:'same_srv_rate',           label:'Same Srv Rate',      group:'traffic', type:'number', def:1.0 },
+  { id:'diff_srv_rate',           label:'Diff Srv Rate',      group:'traffic', type:'number', def:0.0 },
+  { id:'srv_diff_host_rate',      label:'Srv Diff Host',      group:'traffic', type:'number', def:0.0 },
+  { id:'dst_host_count',          label:'Dst Host Cnt',       group:'traffic', type:'number', def:150 },
+  { id:'dst_host_srv_count',      label:'Dst Srv Cnt',        group:'traffic', type:'number', def:25 },
+  { id:'dst_host_same_srv_rate',  label:'Dst Same Srv',       group:'traffic', type:'number', def:0.17 },
+  { id:'dst_host_diff_srv_rate',  label:'Dst Diff Srv',       group:'traffic', type:'number', def:0.03 },
+  { id:'dst_host_same_src_port_rate', label:'Same Src Port',  group:'traffic', type:'number', def:0.17 },
+  { id:'dst_host_srv_diff_host_rate', label:'Srv Diff Host2', group:'traffic', type:'number', def:0.0 },
+  { id:'dst_host_serror_rate',    label:'Dst SErr',           group:'traffic', type:'number', def:0.0 },
+  { id:'dst_host_srv_serror_rate',label:'Dst Srv SErr',       group:'traffic', type:'number', def:0.0 },
+  { id:'dst_host_rerror_rate',    label:'Dst RErr',           group:'traffic', type:'number', def:0.05 },
+  { id:'dst_host_srv_rerror_rate',label:'Dst Srv RErr',       group:'traffic', type:'number', def:0.0 },
+];
+
+// ——— PRESETS ———
+const PRESETS = {
+  normal:   { duration:0, protocol_type:'tcp', service:'http', flag:'SF', src_bytes:491, dst_bytes:0, land:0, wrong_fragment:0, urgent:0, hot:0, num_failed_logins:0, logged_in:1, num_compromised:0, root_shell:0, su_attempted:0, num_root:0, num_file_creations:0, num_shells:0, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:2, srv_count:2, serror_rate:0, srv_serror_rate:0, rerror_rate:0, srv_rerror_rate:0, same_srv_rate:1, diff_srv_rate:0, srv_diff_host_rate:0, dst_host_count:150, dst_host_srv_count:25, dst_host_same_srv_rate:0.17, dst_host_diff_srv_rate:0.03, dst_host_same_src_port_rate:0.17, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:0, dst_host_srv_serror_rate:0, dst_host_rerror_rate:0.05, dst_host_srv_rerror_rate:0 },
+  neptune:  { duration:0, protocol_type:'tcp', service:'http', flag:'S0', src_bytes:0, dst_bytes:0, land:0, wrong_fragment:0, urgent:0, hot:0, num_failed_logins:0, logged_in:0, num_compromised:0, root_shell:0, su_attempted:0, num_root:0, num_file_creations:0, num_shells:0, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:511, srv_count:511, serror_rate:1, srv_serror_rate:1, rerror_rate:0, srv_rerror_rate:0, same_srv_rate:1, diff_srv_rate:0, srv_diff_host_rate:0, dst_host_count:255, dst_host_srv_count:255, dst_host_same_srv_rate:1, dst_host_diff_srv_rate:0, dst_host_same_src_port_rate:0, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:1, dst_host_srv_serror_rate:1, dst_host_rerror_rate:0, dst_host_srv_rerror_rate:0 },
+  portscan: { duration:0, protocol_type:'tcp', service:'private', flag:'REJ', src_bytes:0, dst_bytes:0, land:0, wrong_fragment:0, urgent:0, hot:0, num_failed_logins:0, logged_in:0, num_compromised:0, root_shell:0, su_attempted:0, num_root:0, num_file_creations:0, num_shells:0, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:129, srv_count:1, serror_rate:0, srv_serror_rate:0, rerror_rate:1, srv_rerror_rate:1, same_srv_rate:0.01, diff_srv_rate:0.06, srv_diff_host_rate:1, dst_host_count:255, dst_host_srv_count:1, dst_host_same_srv_rate:0, dst_host_diff_srv_rate:0.01, dst_host_same_src_port_rate:0, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:0, dst_host_srv_serror_rate:0, dst_host_rerror_rate:1, dst_host_srv_rerror_rate:1 },
+  smurf:    { duration:0, protocol_type:'icmp', service:'ecr_i', flag:'SF', src_bytes:1032, dst_bytes:0, land:0, wrong_fragment:0, urgent:0, hot:0, num_failed_logins:0, logged_in:0, num_compromised:0, root_shell:0, su_attempted:0, num_root:0, num_file_creations:0, num_shells:0, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:511, srv_count:511, serror_rate:0, srv_serror_rate:0, rerror_rate:0, srv_rerror_rate:0, same_srv_rate:1, diff_srv_rate:0, srv_diff_host_rate:0, dst_host_count:255, dst_host_srv_count:255, dst_host_same_srv_rate:1, dst_host_diff_srv_rate:0, dst_host_same_src_port_rate:1, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:0, dst_host_srv_serror_rate:0, dst_host_rerror_rate:0, dst_host_srv_rerror_rate:0 },
+  ftp:      { duration:0, protocol_type:'tcp', service:'ftp', flag:'SF', src_bytes:521, dst_bytes:685, land:0, wrong_fragment:0, urgent:0, hot:1, num_failed_logins:0, logged_in:1, num_compromised:0, root_shell:0, su_attempted:0, num_root:0, num_file_creations:1, num_shells:0, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:1, srv_count:1, serror_rate:0, srv_serror_rate:0, rerror_rate:0, srv_rerror_rate:0, same_srv_rate:1, diff_srv_rate:0, srv_diff_host_rate:0, dst_host_count:232, dst_host_srv_count:2, dst_host_same_srv_rate:0.01, dst_host_diff_srv_rate:0.04, dst_host_same_src_port_rate:0.5, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:0, dst_host_srv_serror_rate:0, dst_host_rerror_rate:0, dst_host_srv_rerror_rate:0 },
+  rootkit:  { duration:11884, protocol_type:'tcp', service:'telnet', flag:'SF', src_bytes:1511, dst_bytes:2927, land:0, wrong_fragment:0, urgent:0, hot:32, num_failed_logins:0, logged_in:1, num_compromised:6, root_shell:1, su_attempted:0, num_root:3, num_file_creations:0, num_shells:2, num_access_files:0, num_outbound_cmds:0, is_host_login:0, is_guest_login:0, count:1, srv_count:1, serror_rate:0, srv_serror_rate:0, rerror_rate:0, srv_rerror_rate:0, same_srv_rate:1, diff_srv_rate:0, srv_diff_host_rate:0, dst_host_count:34, dst_host_srv_count:1, dst_host_same_srv_rate:0.03, dst_host_diff_srv_rate:0.15, dst_host_same_src_port_rate:1, dst_host_srv_diff_host_rate:0, dst_host_serror_rate:0, dst_host_srv_serror_rate:0, dst_host_rerror_rate:0, dst_host_srv_rerror_rate:0 },
+};
+
+// ——— STATE ———
+let history = [];
+let stats = { total:0, normal:0, attack:0, confSum:0 };
+let modelName = '—';
+
+// ——— RENDER FORM ———
+function buildForm() {
+  const groups = { basic: [], content: [], traffic: [] };
+  FEATURES.forEach(f => groups[f.group].push(f));
+
+  ['basic','content','traffic'].forEach(g => {
+    const container = document.getElementById(`${g}-features`);
+    container.innerHTML = '';
+    groups[g].forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'field';
+      let inp = '';
+      if (f.type === 'select') {
+        const opts = f.opts.map(o => `<option value="${o}" ${o===f.def?'selected':''}>${o}</option>`).join('');
+        inp = `<select id="f_${f.id}">${opts}</select>`;
+      } else {
+        inp = `<input type="number" id="f_${f.id}" value="${f.def}" step="any"/>`;
+      }
+      div.innerHTML = `<label for="f_${f.id}">${f.label}</label>${inp}`;
+      container.appendChild(div);
+    });
+  });
+}
+
+// ——— READ FORM VALUES → 41 numeric features ———
+function readFeatures() {
+  const pType = document.getElementById('f_protocol_type').value;
+  const pMap  = { tcp:0, udp:1, icmp:2 };
+
+  const svc = document.getElementById('f_service').value;
+  const sMap = { http:0,ftp:1,smtp:2,ssh:3,dns:4,finger:5,telnet:6,domain_u:7,private:8,ecr_i:9,other:10 };
+
+  const flag = document.getElementById('f_flag').value;
+  const fMap = { SF:0,S0:1,REJ:2,RSTO:3,SH:4,RSTR:5,S1:6,S2:7,S3:8,OTH:9 };
+
+  return FEATURES.map(f => {
+    const el = document.getElementById(`f_${f.id}`);
+    if (f.id === 'protocol_type') return pMap[el.value] ?? 0;
+    if (f.id === 'service')       return sMap[el.value] ?? 0;
+    if (f.id === 'flag')          return fMap[el.value] ?? 0;
+    return parseFloat(el.value) || 0;
+  });
+}
+
+// ——— LOAD PRESET ———
+function loadPreset(name) {
+  const p = PRESETS[name];
+  FEATURES.forEach(f => {
+    const el = document.getElementById(`f_${f.id}`);
+    if (el && p[f.id] !== undefined) el.value = p[f.id];
+  });
+  toast(`Scénario chargé : ${name.toUpperCase()}`, false);
+}
+
+// ——— CHECK HEALTH ———
+async function checkHealth() {
+  const url = document.getElementById('api-url').value.trim();
+  try {
+    const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    setApiStatus(true, d.model || 'Unknown');
+    toast(`API en ligne — modèle : ${d.model}`, false);
+  } catch(e) {
+    setApiStatus(false);
+    toast('API inaccessible. Lancez uvicorn d\'abord.', true);
+  }
+}
+
+function setApiStatus(online, model='') {
+  const dot  = document.getElementById('api-status-dot');
+  const text = document.getElementById('api-status-text');
+  const hdr  = document.getElementById('model-name-hdr');
+  if (online) {
+    dot.className  = 'dot';
+    text.textContent = 'API ONLINE';
+    text.style.color = 'var(--green)';
+    modelName = model;
+    hdr.textContent = model;
+    hdr.style.color = 'var(--accent)';
+  } else {
+    dot.className  = 'dot offline';
+    text.textContent = 'API DISCONNECTED';
+    text.style.color = 'var(--dim)';
+    hdr.textContent = 'NO MODEL';
+    hdr.style.color = 'var(--dim)';
+  }
+}
+
+// ——— SEND PREDICTION ———
+async function sendPrediction() {
+  const url = document.getElementById('api-url').value.trim();
+  const btn = document.getElementById('predict-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⟫ ANALYSE EN COURS...';
+
+  const features = readFeatures();
+
+  try {
+    const r = await fetch(`${url}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ features }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+
+    showResult(d);
+    addHistory(d);
+    updateStats(d);
+    setApiStatus(true, d.model || modelName);
+
+  } catch(e) {
+    // Simulation mode when API is offline
+    const sim = simulateResult(features);
+    showResult(sim);
+    addHistory({ ...sim, simulated: true });
+    updateStats(sim);
+    toast('API hors ligne — simulation locale activée', true);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '⟫ ANALYSER LE TRAFIC';
+  }
+}
+
+// ——— LOCAL SIMULATION (heuristic) ———
+function simulateResult(features) {
+  // Heuristic: serror_rate(idx 24), count(22), root_shell(13), num_compromised(12)
+  const serror = features[24];
+  const count  = features[22];
+  const root   = features[13];
+  const comp   = features[12];
+  const flag   = features[3]; // 1=S0, 2=REJ
+
+  let score = 0;
+  if (serror > 0.5)  score += 0.5;
+  if (count  > 200)  score += 0.2;
+  if (root   > 0)    score += 0.6;
+  if (comp   > 2)    score += 0.3;
+  if (flag === 1 || flag === 2) score += 0.3;
+
+  const prediction = score > 0.5 ? 1 : 0;
+  const confidence = prediction === 1
+    ? Math.min(0.99, 0.55 + score * 0.25)
+    : Math.max(0.6,  0.95 - score * 0.4);
+
+  return {
+    prediction,
+    label: prediction === 1 ? 'ATTAQUE' : 'NORMAL',
+    confidence: parseFloat(confidence.toFixed(4)),
+    processing_time_ms: parseFloat((Math.random() * 3 + 1).toFixed(2)),
+    model: 'Simulation',
+  };
+}
+
+// ——— SHOW RESULT ———
+function showResult(d) {
+  const isAttack = d.prediction === 1;
+  const icon   = document.getElementById('result-icon');
+  const verdict= document.getElementById('result-verdict');
+  const wrap   = document.getElementById('confidence-wrap');
+  const fill   = document.getElementById('conf-fill');
+  const pct    = document.getElementById('conf-pct');
+  const meta   = document.getElementById('result-meta');
+
+  icon.textContent = isAttack ? '⚠' : '✓';
+  icon.style.color = isAttack ? 'var(--red)' : 'var(--green)';
+
+  verdict.textContent = d.label;
+  verdict.className = `result-verdict ${isAttack ? 'attack' : 'normal'}`;
+
+  wrap.style.display = 'block';
+  fill.className = `confidence-fill ${isAttack ? 'attack' : 'normal'}`;
+  const p = Math.round(d.confidence * 100);
+  setTimeout(() => { fill.style.width = p + '%'; }, 50);
+  pct.textContent = p + '%';
+
+  document.getElementById('meta-conf').textContent  = p + '%';
+  document.getElementById('meta-time').textContent  = d.processing_time_ms?.toFixed(1) + 'ms';
+  document.getElementById('meta-model').textContent = (d.model || modelName || '—').substring(0,10);
+  document.getElementById('meta-pred').textContent  = d.prediction;
+  meta.style.display = 'grid';
+}
+
+// ——— ADD HISTORY ———
+function addHistory(d) {
+  const isAttack = d.prediction === 1;
+  const now = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  history.unshift({ ...d, time: now });
+
+  const list = document.getElementById('log-list');
+  if (list.querySelector('.empty')) list.innerHTML = '';
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <span class="log-tag ${isAttack?'attack':'normal'}">${isAttack?'ATTAQUE':'NORMAL'}</span>
+    <span class="log-time">${now}</span>
+    <span class="log-model">${d.model||'—'}${d.simulated?' [sim]':''}</span>
+    <span class="log-conf">${Math.round(d.confidence*100)}%</span>
+  `;
+  list.prepend(entry);
+}
+
+// ——— UPDATE STATS ———
+function updateStats(d) {
+  stats.total++;
+  if (d.prediction === 1) stats.attack++; else stats.normal++;
+  stats.confSum += d.confidence;
+
+  document.getElementById('stat-total').textContent  = stats.total;
+  document.getElementById('stat-normal').textContent = stats.normal;
+  document.getElementById('stat-attack').textContent = stats.attack;
+  document.getElementById('stat-avg').textContent    = Math.round(stats.confSum/stats.total*100) + '%';
+}
+
+function clearHistory() {
+  history = [];
+  stats = { total:0, normal:0, attack:0, confSum:0 };
+  document.getElementById('log-list').innerHTML = '<div class="empty">Aucun test effectué</div>';
+  ['stat-total','stat-normal','stat-attack'].forEach(id => document.getElementById(id).textContent='0');
+  document.getElementById('stat-avg').textContent='—';
+}
+
+// ——— TOAST ———
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = err ? 'error' : '';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ——— INIT ———
+buildForm();
+loadPreset('normal');
+checkHealth();
+</script>
+</body>
+</html>

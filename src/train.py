@@ -10,7 +10,7 @@ from preprocessing import load_data, preprocess
 
 mlflow.set_experiment("Cybersecurity_MLOps")
 
-df = load_data("../data/raw/KDDTrain+.txt")
+df = load_data("data/raw/KDDTrain+.txt")
 
 X_train, X_test, y_train, y_test = preprocess(df)
 
@@ -41,4 +41,4 @@ for name, model in models.items():
             best_score = accuracy
             best_model = model
 
-joblib.dump(best_model, "../models/model.pkl")
+joblib.dump(best_model, "models/model.pkl")
